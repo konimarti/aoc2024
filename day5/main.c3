@@ -3,17 +3,21 @@ module aoc2024::app;
 import std::io;
 import std::collections::tuple;
 import std::collections::list;
+import std::sort;
 
 fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result part1: %d", part1());
-		// io::printfn("result part2: %d", part2());
+		part1and2();
 	};
 }
 
-fn long part1()
+fault Error { INVALID }
+
+def ListRule = List(<Tuple(<int,int>)>);
+
+fn void part1and2()
 {
 	// String s = (String)file::load_temp("input_test")!!;
 	String s = (String)file::load_temp("input")!!;
@@ -21,7 +25,7 @@ fn long part1()
 	String[] parts = s.tsplit("\n\n");
 	assert(parts.len == 2);
 
-	List(<Tuple(<int, int>)>) rules;
+	ListRule rules;
 	rules.temp_init(256);
 
 	// read rules
@@ -29,15 +33,14 @@ fn long part1()
 	{
 		String[] pages = rule.tsplit("|");
 		assert(pages.len == 2);
-		// io::printn(pages);
 
 		// x must be before y: before[x] = y
 		rules.push({pages[0].to_int()!!, pages[1].to_int()!!});
 	}
 
-
 	int[256] pages;
-	int sum;
+	int sum, sum2;
+
 	// read updates
 	foreach (update : parts[1].tsplit("\n"))
 	{
@@ -49,18 +52,26 @@ fn long part1()
 			pages[i] = page.to_int()!!;
 			i++;
 		}
-		sum += middle_page(pages[:i], rules);
+		int! mid = middle_page(pages[:i], rules);
+		if (@ok(mid))
+		{	sum += mid!!;
+		}
+		else
+		{
+			sum2 += fix(pages[:i], rules);
+		}
 	}
 
-	return sum;
+	io::printfn("part1: %d", sum);
+	io::printfn("part2: %d", sum2);
 }
 
-// pages in update
-fn int middle_page(int[] pages, List(<Tuple(<int,int>)>) rules)
+// update line in pages
+fn int! middle_page(int[] pages, ListRule rules)
 {
 	if (pages.len <= 1) return 0;
 
-	// check if valid
+	// check if valid; return if invalid
 	for (int i = 0; i < (pages.len-1); i++)
 	{
 		for JLOOP: (int j = i + 1; j < (pages.len); j++)
@@ -68,15 +79,32 @@ fn int middle_page(int[] pages, List(<Tuple(<int,int>)>) rules)
 			foreach (rule : rules)
 			{
 				if (rule.first == pages[i] && rule.second == pages[j]) continue JLOOP;
-				if (rule.first == pages[j] && rule.second == pages[i]) return 0;
+				if (rule.first == pages[j] && rule.second == pages[i]) return Error.INVALID?;
 
 			}
-			// no rule found?
+			unreachable();
 		}
 	}
 
 	// if we still here, meaning update is valid
 	// return middle page
+	return pages[pages.len/2];
+}
+
+fn int fix(int[] pages, ListRule rules)
+{
+	if (pages.len <= 1) return 0;
+
+	sort::quicksort(pages, fn int(int a, int b, ListRule rules){
+			if (a == b) return 0;
+			foreach (rule : rules)
+			{
+				if (rule.first == a && rule.second == b) return -1;
+				if (rule.first == b && rule.second == a) return 1;
+			}
+			unreachable();
+	}, rules);
+
 	return pages[pages.len/2];
 }
 

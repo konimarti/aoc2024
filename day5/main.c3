@@ -1,7 +1,6 @@
 module aoc2024::app;
 
 import std::io;
-import std::collections::tuple;
 import std::collections::list;
 import std::sort;
 
@@ -15,7 +14,7 @@ fn void! main()
 
 fault Error { INVALID }
 
-def ListRule = List(<Tuple(<int,int>)>);
+def ListRule = List(<int[<2>]>);
 
 fn void part1and2()
 {
@@ -34,7 +33,7 @@ fn void part1and2()
 		String[] pages = rule.tsplit("|");
 		assert(pages.len == 2);
 
-		// x must be before y: before[x] = y
+		// x must be before y: int[2] = {x, y};
 		rules.push({pages[0].to_int()!!, pages[1].to_int()!!});
 	}
 
@@ -78,8 +77,8 @@ fn int! middle_page(int[] pages, ListRule rules)
 		{
 			foreach (rule : rules)
 			{
-				if (rule.first == pages[i] && rule.second == pages[j]) continue JLOOP;
-				if (rule.first == pages[j] && rule.second == pages[i]) return Error.INVALID?;
+				if (rule.x == pages[i] && rule.y == pages[j]) continue JLOOP;
+				if (rule.x == pages[j] && rule.y == pages[i]) return Error.INVALID?;
 
 			}
 			unreachable();
@@ -98,8 +97,8 @@ fn int fix(int[] pages, ListRule rules)
 			if (a == b) return 0;
 			foreach (rule : rules)
 			{
-				if (rule.first == a && rule.second == b) return -1;
-				if (rule.first == b && rule.second == a) return 1;
+				if (rule.x == a && rule.y == b) return -1;
+				if (rule.x == b && rule.y == a) return 1;
 			}
 			unreachable();
 	}, rules)!!;

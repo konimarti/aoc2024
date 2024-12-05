@@ -94,8 +94,7 @@ fn int! middle_page(int[] pages, ListRule rules)
 fn int fix(int[] pages, ListRule rules)
 {
 	if (pages.len <= 1) return 0;
-
-	sort::quicksort(pages, fn int(int a, int b, ListRule rules){
+	return sort::quickselect(pages, pages.len/2, fn int(int a, int b, ListRule rules){
 			if (a == b) return 0;
 			foreach (rule : rules)
 			{
@@ -103,9 +102,7 @@ fn int fix(int[] pages, ListRule rules)
 				if (rule.first == b && rule.second == a) return 1;
 			}
 			unreachable();
-	}, rules);
-
-	return pages[pages.len/2];
+	}, rules)!!;
 }
 
 

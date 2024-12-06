@@ -9,8 +9,6 @@ fn void! main()
 	@pool()
 	{
 		solve();
-		// io::printfn("result part1: %d", part1());
-		// io::printfn("result part2: %d", part2());
 	};
 }
 
@@ -22,8 +20,8 @@ const BLOCK = '#';
 
 fn void solve()
 {
-	String s = (String)file::load_temp("input_test")!!;
-	// String s = (String)file::load_temp("input")!!;
+	// String s = (String)file::load_temp("input_test")!!;
+	String s = (String)file::load_temp("input")!!;
 
 	Map map;
 	map.temp_init(256);
@@ -38,9 +36,9 @@ fn void solve()
 		map.push(line);
 	}
 
-	io::printfn("result part1: %d", play(map,start));
+	io::printfn("result part1: %d", part1(map,start).len());
 
-	io::printfn("result part2: %d", loops(map,start));
+	io::printfn("result part2: %d", part2(map,start));
 }
 
 fn bool offgrid(Pos guard, usz xmax, usz ymax)
@@ -50,7 +48,7 @@ fn bool offgrid(Pos guard, usz xmax, usz ymax)
 	return false;
 }
 
-fn long play(Map map, Pos start)
+fn List(<Pos>) part1(Map map, Pos start)
 {
 	Pos guard = start;
 	Pos dir = {-1, 0};
@@ -59,19 +57,17 @@ fn long play(Map map, Pos start)
 	usz xmax = map.len();
 	usz ymax = map[0].len;
 
-	io::printfn("start: %s", start.v);
-	io::printfn("xmax: %s", xmax);
-	io::printfn("ymax: %s", ymax);
+	List(<Pos>) list;
+	list.temp_init();
 
-	usz count = 0;
 	bool[256][256] visited;
 
 	while (true)
 	{
 		if (!visited[guard.r][guard.c])
 		{
-			count++;
 			visited[guard.r][guard.c] = true;
+			list.push(guard);
 		}
 
 		// peek ahead, if obstacle
@@ -89,21 +85,19 @@ fn long play(Map map, Pos start)
 		}
 	}
 
-	return count;
+	return list;
 }
 
-fn long loops(Map map, Pos start)
+fn long part2(Map map, Pos start)
 {
 	usz loop = 0;
-	usz xmax = map.len();
-	usz ymax = map[0].len;
-
-	for (isz i = 0; i < xmax; i++)
+	foreach (i, opt : part1(map,start))
 	{
-		for (isz j = 0; j < ymax; j++)
+		if (opt.v == start.v) continue;
+		if (is_loop(map, start, opt))
 		{
-			if (is_loop(map, start, Pos{i, j})) loop++;
-			io::printn("next");
+			loop++;
+			io::printfn("[%d] loop: %d", i, loop);
 		}
 	}
 	return loop;
@@ -115,16 +109,13 @@ fn bool is_loop(Map map, Pos start, Pos obs)
 	Pos dir = {-1, 0};
 	Pos next;
 
-	Pos ini_guard = guard;
-	Pos ini_dir = dir;
+	List(<Pos[2]>) visited;
+	visited.temp_init(256);
 
 	usz xmax = map.len();
 	usz ymax = map[0].len;
 
-	usz loops = 0;
-
-	long max_retries = xmax * ymax;
-	while (max_retries--)
+	while (true)
 	{
 		next = guard.add(dir);
 		if (offgrid(next, xmax, ymax)) break;
@@ -136,16 +127,13 @@ fn bool is_loop(Map map, Pos start, Pos obs)
 		}
 		else
 		{
-
-			if (next.v == ini_guard.v && dir.v == ini_dir.v)
+			foreach (v : visited)
 			{
-				// we have a loop!
-				return true;
+				if (next.v == v[0].v && dir.v == v[1].v) return true; // we have a loop
 			}
-
+			visited.push({next, dir});
 			guard = next;
 		}
 	}
-
 	return false;
 }

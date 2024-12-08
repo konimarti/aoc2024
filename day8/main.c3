@@ -1,3 +1,6 @@
+// Note: this will no compile with the current c3c stdlib
+// I have some local modifications for the complex numbers.
+
 module aoc2024::app;
 
 import std::io;

@@ -1,10 +1,7 @@
-// Note: this will no compile with the current c3c stdlib
-// I have some local modifications for the complex numbers.
-
 module aoc2024::app;
 
 import std::io;
-import std::math; // complex
+import std::math;
 import std::collections::list;
 import std::collections::map;
 
@@ -16,7 +13,7 @@ fn void! main()
 	};
 }
 
-def Pos = Complex(<long>);
+def Pos = int[<2>];
 def ListPos = List(<Pos>);
 def Map = HashMap(<char,ListPos>);
 
@@ -48,7 +45,7 @@ fn long solve()
 			{
 				list = m[c]!!;
 			}
-			list.push({x,y});
+			list.push({(int)x,(int)y});
 			m[c] = list;
 		}
 	}
@@ -87,12 +84,12 @@ fn long count_antinodes(ListPos list, usz xmax, usz ymax, ListPos* c)
 		{
 			Pos x = list[i];
 			Pos y = list[j];
-			Pos dir = x.sub(y);
-			for (Pos node = x; in_map(node, xmax, ymax); node = node.add(dir))
+			Pos dir = x - y;
+			for (Pos node = x; in_map(node, xmax, ymax); node = node += dir)
 			{
 				if (check_node(node, xmax, ymax, c)) ctr++;
 			}
-			for (Pos node = x.sub(dir); in_map(node, xmax, ymax); node = node.sub(dir))
+			for (Pos node = x - dir; in_map(node, xmax, ymax); node -= dir)
 			{
 				if (check_node(node, xmax, ymax, c)) ctr++;
 			}
@@ -103,7 +100,7 @@ fn long count_antinodes(ListPos list, usz xmax, usz ymax, ListPos* c)
 
 fn bool in_map(Pos p, usz xmax, usz ymax)
 {
-	if (p.r < 0 || p.c < 0) return false;
-	if (p.r >= xmax || p.c >= ymax) return false;
+	if (p.x < 0 || p.y < 0) return false;
+	if (p.x >= xmax || p.y >= ymax) return false;
 	return true;
 }

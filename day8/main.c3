@@ -9,7 +9,7 @@ fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part1 %d", part1());
+		io::printfn("result: %d", solve());
 	};
 }
 
@@ -17,7 +17,7 @@ def Pos = Complex(<long>);
 def ListPos = List(<Pos>);
 def Map = HashMap(<char,ListPos>);
 
-fn long part1()
+fn long solve()
 {
 	// String s = (String)file::load_temp("input_test")!!;
 	String s = (String)file::load_temp("input")!!;
@@ -50,17 +50,6 @@ fn long part1()
 		}
 	}
 
-	/*
-	foreach (k : m.tcopy_keys())
-	{
-		io::printf("key: %c ", k);
-		foreach (p : m[k]!!)
-		{
-			io::printf("(%d,%d),", p.r, p.c);
-		}
-		io::printn("");
-	}
-	*/
 	io::printfn("xmax: %d ", xmax);
 	io::printfn("ymax: %d ", ymax);
 
@@ -74,8 +63,19 @@ fn long part1()
 	return count;
 }
 
-fn long count_antinodes(ListPos list, usz xmax, usz ymax, ListPos* considered)
+def Checkfn = fn bool(Pos, usz, usz, ListPos*);
+
+fn long count_antinodes(ListPos list, usz xmax, usz ymax, ListPos* c)
 {
+	Checkfn check_node = fn bool(Pos node, usz xmax, usz ymax, ListPos *c)
+	{
+		if (!in_map(node, xmax, ymax)) return false;
+		if (c.contains(node)) return false;
+		c.push(node);
+		// io::printfn("node: (%d,%d)", node.r, node.c);
+		return true;
+	};
+
 	usz ctr;
 	usz n = list.len();
 	for (usz i = 0; i < (n-1); i++)
@@ -85,28 +85,15 @@ fn long count_antinodes(ListPos list, usz xmax, usz ymax, ListPos* considered)
 			Pos x = list[i];
 			Pos y = list[j];
 			Pos dir = x.sub(y);
-			Pos node = x.add(dir);
-			if (in_map(node, xmax, ymax))
+			for (Pos node = x; in_map(node, xmax, ymax); node = node.add(dir))
 			{
-				if (!considered.contains(node))
-				{
-					ctr++;
-					considered.push(node);
-					io::printfn("node: (%d,%d)", node.r, node.c);
-				}
+				if (check_node(node, xmax, ymax, c)) ctr++;
 			}
-			node = y.sub(dir);
-			if (in_map(node, xmax, ymax))
+			for (Pos node = x.sub(dir); in_map(node, xmax, ymax); node = node.sub(dir))
 			{
-				if (!considered.contains(node))
-				{
-					ctr++;
-					considered.push(node);
-					io::printfn("node: (%d,%d)", node.r, node.c);
-				}
+				if (check_node(node, xmax, ymax, c)) ctr++;
 			}
 		}
-
 	}
 	return ctr;
 }

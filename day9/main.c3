@@ -76,35 +76,33 @@ fn void reorder_part1(long[] mem)
 fn void reorder_part2(long[] mem)
 {
 	isz l, r, n;
+	usz k, j;
 	n = mem.len;
 	r = n-1;
-	while OUTER: (r>=0)
+	while (r >= 0)
 	{
-		// move r to next file position != '.'
+		// move r to end of the next file position
 		while (mem[r] == -1 && r >= 0) r--;
 
-		
-		// get length of file block (k = needed space)
-		usz k;
+		// get length k of next file block
+		k = 0;
 		while (r-k >= 0 && mem[r-k] == mem[r]) k++;
 
-		// find first free block
-		usz j;
+		// find first free block at l with enough space j
 		l = 0;
-		while (l < r-k)
+		while FREE: (l < r-k)
 		{
-			if (mem[l] != -1) {
-				l++;
-				continue;
-			}
+			// count free space j from start position l
 			j = 0;
 			while (j < k && mem[l+j] == -1) j++;
+
+			// if free space j is equal to required length k,
+			// then move block
 			if (j == k)
 			{
-				// sucess move block
+				// we have enough space, move block
 				for (j = 0; j < k; j++) @swap(mem[l+j], mem[r-j]);
-				r = r - k;
-				continue OUTER;
+				break FREE;
 			}
 			l++;
 		}

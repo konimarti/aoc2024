@@ -8,7 +8,7 @@ fn void! main()
 	@pool()
 	{
 		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		io::printfn("result: part 2: %d", part2());
 	};
 }
 
@@ -18,7 +18,17 @@ fn long part1()
 	String s = (String)file::load_temp("input")!!;
 	s = s.trim();
 	long[] mem = expand(s);
-	reorder(mem);
+	reorder_part1(mem);
+	return sumup(mem);
+}
+
+fn long part2()
+{
+	// String s = (String)file::load_temp("input_test")!!;
+	String s = (String)file::load_temp("input")!!;
+	s = s.trim();
+	long[] mem = expand(s);
+	reorder_part2(mem);
 	return sumup(mem);
 }
 
@@ -45,7 +55,7 @@ fn long[] expand(String blocks)
 	return line.array_view();
 }
 
-fn void reorder(long[] mem)
+fn void reorder_part1(long[] mem)
 {
 	isz l, r, n;
 	n = mem.len;
@@ -60,6 +70,45 @@ fn void reorder(long[] mem)
 
 		if (l >= r) break;
 		@swap(mem[l], mem[r]);
+	}
+}
+
+fn void reorder_part2(long[] mem)
+{
+	isz l, r, n;
+	n = mem.len;
+	r = n-1;
+	while OUTER: (r>=0)
+	{
+		// move r to next file position != '.'
+		while (mem[r] == -1 && r >= 0) r--;
+
+		
+		// get length of file block (k = needed space)
+		usz k;
+		while (r-k >= 0 && mem[r-k] == mem[r]) k++;
+
+		// find first free block
+		usz j;
+		l = 0;
+		while (l < r-k)
+		{
+			if (mem[l] != -1) {
+				l++;
+				continue;
+			}
+			j = 0;
+			while (j < k && mem[l+j] == -1) j++;
+			if (j == k)
+			{
+				// sucess move block
+				for (j = 0; j < k; j++) @swap(mem[l+j], mem[r-j]);
+				r = r - k;
+				continue OUTER;
+			}
+			l++;
+		}
+		r = r - k;
 	}
 }
 

@@ -8,16 +8,16 @@ fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		solve();
 	};
 }
 
 def Pos = isz[<2>];
 def ListPos = List(<Pos>);
 def Map = List(<String>);
+def TrailRating = HashMap(<String,int>);
 
-fn long part1()
+fn void solve()
 {
 	// String s = (String)file::load_temp("input_test")!!;
 	String s = (String)file::load_temp("input")!!;
@@ -40,35 +40,34 @@ fn long part1()
 		}
 	}
 
-	usz[] memo = mem::temp_new_array(usz, lines.len * lines[0].len);
-	memo[..] = 0;
-
 	ListPos queue;
 	usz sum;
-	usz sc;
+	usz rating;
 	foreach (th : trailheads)
 	{
 		queue.clear();
 		queue.temp_init();
 		queue.push(th);
-		sc = score(m, queue, memo);
-		// io::printfn("th: %s, score: %d", th, sc);
-		sum += sc;
+		TrailRating tr = score(m, queue);
+		sum += tr.len();
+		tr.@each(; String key, int v){ rating += v; };
 	}
 
-	return sum;
+	io::printfn("result: part 1: %d", sum);
+	io::printfn("result: part 2: %d", rating);
 }
 
 Pos[4] directions = {{1,0}, {-1,0}, {0,1}, {0,-1}};
 
-fn usz score(Map m, ListPos queue, usz[] memo)
+// bfs
+fn TrailRating score(Map m, ListPos queue)
 {
+	Pos p;
+	char cur;
 	isz xmax = m.len();
 	isz ymax = m[0].len;
-	char cur;
-	Pos p;
 
-	HashMap(<String,bool>) visited;
+	HashMap(<String,int>) visited;
 	visited.temp_init();
 
 	while OUTER: (queue.len())
@@ -77,7 +76,9 @@ fn usz score(Map m, ListPos queue, usz[] memo)
 		cur = m[p.x][p.y];
 		if (cur == '9')
 		{
-			visited[string::tformat("%s", p)] = true;
+			String key = string::tformat("%s", p);
+			if (!visited.has_key(key)) visited[key] = 0;
+			(*visited.get_ref(key)!!)++;
 			continue OUTER;
 		}
 
@@ -91,5 +92,5 @@ fn usz score(Map m, ListPos queue, usz[] memo)
 		}
 	}
 
-	return visited.len();
+	return visited;
 }

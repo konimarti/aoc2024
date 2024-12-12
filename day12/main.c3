@@ -36,9 +36,7 @@ fn void solve()
 	Garden garden;
 	garden.temp_init();
 
-	Pos[4] dirs = {{1,0}, {-1,0}, {0,1}, {0,-1}};
-	Pos max = {lines.len, lines[0].len};
-	Pos pos, n;
+	Pos pos;
 
 	List(<Pos>) visited;
 	visited.temp_init();

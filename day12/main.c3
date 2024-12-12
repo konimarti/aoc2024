@@ -8,8 +8,7 @@ fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part 1: %d", solve());
-		// io::printfn("result: part 2: %d", solve(75));
+		solve();
 	};
 }
 
@@ -24,7 +23,7 @@ struct Region
 
 def Garden = List(<Region>);
 
-fn long solve()
+fn void solve()
 {
 	$if $feature(TEST):
 	String s = (String)file::load_temp("input_test")!!;
@@ -56,15 +55,127 @@ fn long solve()
 		}
 	}
 
-	// loop through garden
-	long sum;
+	long sum1;
 	foreach (r : garden)
 	{
-		io::printfn("region %c, area %d, fences %d", r.c, r.plots.len(), r.fences);
-		sum += r.plots.len() * r.fences;
+		// io::printfn("region %c, area %d, fences %d", r.c, r.plots.len(), r.fences);
+		sum1 += r.plots.len() * r.fences;
+	}
+	io::printfn("result: part 1: %d", sum1);
+
+	long sum2;
+	foreach (r : garden)
+	{
+		long nfences = bulk(r, lines);
+		sum2 += r.plots.len() * nfences;
+	}
+	io::printfn("result: part 2: %d", sum2);
+}
+
+fn long bulk(Region r, String[] m)
+{
+	return horizontal(r,m) + vertical(r,m);
+}
+
+fn long count(bool[] line) @inline
+{
+	long ctr = 0;
+	bool track = false;
+	foreach (x, now : line)
+	{
+		if (!track && now) ctr++;
+		track = now;
+	}
+	return ctr;
+}
+
+fn long vertical(Region r, String[] m)
+{
+	long fences;
+	bool[] line = mem::temp_new_array(bool, m.len);
+
+	// left-most line
+	foreach (x, &now : line)
+	{
+		*now = r.plots.contains({(int)x,(int)0});
+	}
+	fences += count(line);
+
+	// righ-most line
+	foreach (x, &now : line)
+	{
+		*now = r.plots.contains({(int)x,(int)m[0].len-1});
+	}
+	fences += count(line);
+
+	// in-between line (looking left)
+	for (int y = 1; y < m[0].len; y++)
+	{
+		line[..] = false;
+		for (int x = 0; x < m.len; x++)
+		{
+			line[x] = r.plots.contains({(int)x,(int)y}) && m[x][y-1] != r.c;
+		}
+		fences += count(line);
 	}
 
-	return sum;
+	// in-between line (looking right)
+	for (int y = 0; y < m[0].len-1; y++)
+	{
+		line[..] = false;
+		for (int x = 0; x < m.len; x++)
+		{
+			line[x] = r.plots.contains({(int)x,(int)y}) && m[x][y+1] != r.c;
+		}
+		fences += count(line);
+	}
+
+	return fences;
+}
+
+fn long horizontal(Region r, String[] m)
+{
+	long fences;
+	bool[] line = mem::temp_new_array(bool, m[0].len);
+
+	// top-most row
+	foreach (y, &now : line)
+	{
+		*now = r.plots.contains({0,(int)y});
+	}
+	fences += count(line);
+
+	// bootom-most row
+	foreach (y, &now : line)
+	{
+		*now = r.plots.contains({(int)m.len-1,(int)y});
+	}
+	fences += count(line);
+
+	// in-between line (looking up)
+	for (int x = 1; x < m.len; x++)
+	{
+		line[..] = false;
+		for (int y = 0; y < m[0].len; y++)
+		{
+			line[y] = r.plots.contains({x,y}) && m[x-1][y] != r.c;
+		}
+		fences += count(line);
+	}
+
+	// in-between line (looking right)
+	for (int x = 0; x < m.len-1; x++)
+	{
+		line[..] = false;
+		for (int y = 0; y < m[0].len; y++)
+		{
+			line[y] = r.plots.contains({x,y}) && m[x+1][y] != r.c;
+		}
+		fences += count(line);
+	}
+
+	return fences;
+
 }
 
 fn void collect(Region *r, Pos start, String[] map, List(<Pos>) *visited)

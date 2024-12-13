@@ -2,14 +2,13 @@ module aoc2024::app;
 
 import std::io;
 import std::math;
-import std::collections::list;
 
 fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", sum2);
+		io::printfn("result: part 1: %d", solve());
+		io::printfn("result: part 2: %d", solve(10000000000000));
 	};
 }
 
@@ -19,28 +18,41 @@ struct Machine
 	Vec2 price;
 }
 
-Vec2 token_cost = {3, 1};
-
 fn bool Machine.on_price(&m, long a, long b) @inline
 {
-	if ((long)m.m.m00 * a + (long)m.m.m01 * b != (long)m.price[0]) return false;
-	if ((long)m.m.m10 * a + (long)m.m.m11 * b != (long)m.price[1]) return false;
-	return true;
+	return (m.m.apply(Vec2{a,b}) - m.price).length() < 1e-7;
 }
 
 fn long Machine.play(&m)
 {
 	double det = m.m.determinant();
-	if (math::abs(det) < 1e-7) return 0;
+	if (math::abs(det) < 1e-12) return 0;
+
 	Matrix2 inv = {.m00=m.m.m11, .m01=-m.m.m01, .m10=-m.m.m10, .m11=m.m.m00};
 	inv = inv.component_mul(1.0/det);
+
 	Vec2 v = inv.apply(m.price);
-	double tokens = v.dot(token_cost);
-	if (math::abs(tokens - math::round(tokens)) > 1e-7) return 0;
-	return (long)math::round(tokens);
+
+	long a = (long)math::round(v.x);
+	long b = (long)math::round(v.y);
+	if (m.on_price(a,b)) return 3 * a + b;
+	return 0;
 }
 
-fn long part1()
+fn Vec2 parseline(String line, usz skip = 1)
+{
+	String[] parts;
+
+	parts = line.tsplit(": ");
+	assert(parts.len == 2);
+
+	parts = parts[1].tsplit(", ");
+	assert(parts.len == 2);
+
+	return { parts[0].trim()[skip..].to_double()!!, parts[1].trim()[skip..].to_double()!!};
+}
+
+fn long solve(long penalty = 0)
 {
 	$if $feature(TEST):
 	String s = (String)file::load_temp("input_test")!!;
@@ -48,52 +60,21 @@ fn long part1()
 	String s = (String)file::load_temp("input")!!;
 	$endif
 
-	List(<Machine>) machines;
-	machines.temp_init();
-
-	String[] parts;
-
+	long tokens;
+	Vec2 v;
 	String[] lines = s.trim().tsplit("\n");
 	for (usz i = 0; i < lines.len; i += 4)
 	{
 		Matrix2 m;
-
-		parts = lines[i].tsplit(": ");
-		assert(parts.len == 2);
-		parts = parts[1].tsplit(", ");
-		assert(parts.len == 2);
-
-		m.m00 = parts[0].trim()[1..].to_double()!!;
-		m.m10 = parts[1].trim()[1..].to_double()!!;
-
-		// io::printfn("row1 %g, %g", m.m00, m.m01);
-		
-		parts = lines[i+1].tsplit(": ");
-		assert(parts.len == 2);
-		parts = parts[1].tsplit(", ");
-		assert(parts.len == 2);
-
-		m.m01 = parts[0].trim()[1..].to_double()!!;
-		m.m11 = parts[1].trim()[1..].to_double()!!;
-
-		// io::printfn("row2 %g, %g", m.m10, m.m11);
-		
-		Vec2 v;
-		parts = lines[i+2].tsplit(": ");
-		assert(parts.len == 2);
-		parts = parts[1].tsplit(", ");
-		assert(parts.len == 2);
-
-		v.x = parts[0].trim()[2..].to_double()!!;
-		v.y = parts[1].trim()[2..].to_double()!!;
-
-		// io::printfn("vec %g, %g", v.x, v.y);
-
-		machines.push({m, v});
+		v = parseline(lines[i]);
+		m.m00 = v[0];
+		m.m10 = v[1];
+		v = parseline(lines[i+1]);
+		m.m01 = v[0];
+		m.m11 = v[1];
+		v = parseline(lines[i+2], 2) + (double)penalty;
+		tokens += Machine{m,v}.play();
 	}
-
-	long tokens;
-	foreach (m : machines) tokens += m.play();
 
 	return tokens;
 }

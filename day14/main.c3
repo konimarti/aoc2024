@@ -2,6 +2,7 @@ module aoc2024::app;
 
 import std::io;
 import std::math;
+import std::collections::priorityqueue;
 import std::collections::list;
 
 fn void! main()
@@ -9,7 +10,7 @@ fn void! main()
 	@pool()
 	{
 		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		io::printfn("result: part 2: %d", part2());
 	};
 }
 
@@ -45,7 +46,7 @@ fn Robot parse(String line)
 }
 
 fn long part1() => solve(100).product();
-// fn long part2() => solve2();
+fn long part2() => solve2();
 
 fn long[<4>] solve(long seconds)
 {
@@ -91,4 +92,72 @@ fn long[<4>] solve(long seconds)
 	}
 
 	return counts;
+}
+
+struct Entry
+{
+	long index;
+	double locality;
+}
+
+fn int Entry.compare_to(&self, Entry other) => compare_to(self.locality, other.locality); 
+
+fn long solve2()
+{
+	$if $feature(TEST):
+		String s = (String)file::load_temp("input_test")!!;
+		long xmax = 11;
+		long ymax = 7;
+	$else
+		String s = (String)file::load_temp("input")!!;
+		long xmax = 101;
+		long ymax = 103;
+	$endif
+
+	String[] lines = s.trim().tsplit("\n");
+
+	PriorityQueue(<Entry>) heap;
+	heap.temp_init();
+
+	Vec mid = {xmax/2,ymax/2};
+	for (long i = 1; i < 10000; i++)
+	{
+		double locality;
+		foreach (line : lines)
+		{
+			Vec r = parse(line).simulate(i, xmax, ymax);
+			Vec l = r - mid;
+			locality += l.dot(l);
+		}
+		heap.push({i, locality});
+
+	}
+
+	$if $feature(DEBUG):
+		for (int i = 0; i < 10; i++)
+		{
+			Entry e = heap.pop()!!;
+			io::printfn("step: %d, locality: %g", e.index, e.locality);
+
+			List(<Vec>) robots;
+			robots.temp_init();
+			foreach (line: lines) robots.push(parse(line).simulate(e.index, xmax, ymax));
+
+			for (usz x = 0; x < xmax; x++)
+			{
+				for (usz y = 0; y < ymax; y++)
+				{
+					char c = '.';
+					if (robots.contains({x,y})) c = 'O';
+					io::printf("%c", c);
+
+				}
+				io::printn("");
+			}
+
+		}
+		return 0;
+	$else
+		return heap.pop()!!.index;
+	$endif
 }

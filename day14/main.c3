@@ -45,10 +45,8 @@ fn Robot parse(String line)
 		.v = {v[0].to_long()!!, v[1].to_long()!!}};
 }
 
-fn long part1() => solve(100).product();
-fn long part2() => solve2();
-
-fn long[<4>] solve(long seconds)
+fn long part1() @inline => solve(100);
+fn long solve(long seconds)
 {
 	$if $feature(TEST):
 		String s = (String)file::load_temp("input_test")!!;
@@ -60,19 +58,10 @@ fn long[<4>] solve(long seconds)
 		long ymax = 103;
 	$endif
 
-	List(<Vec>) robots;
-	robots.temp_init();
-
-	String[] lines = s.trim().tsplit("\n");
-	foreach (line : lines)
-	{
-		Robot r = parse(line);
-		robots.push(r.simulate(seconds, xmax, ymax));
-	}
-
 	long[<4>] counts;
-	foreach (r : robots)
+	foreach (line : s.trim().tsplit("\n"))
 	{
+		Vec r = parse(line).simulate(seconds, xmax, ymax);
 		if (r.x < xmax/2 && r.y < ymax/2) 
 		{
 			counts[0]++; // top left
@@ -90,8 +79,7 @@ fn long[<4>] solve(long seconds)
 			counts[3]++; // bottom right
 		}
 	}
-
-	return counts;
+	return counts.product();
 }
 
 struct Entry
@@ -102,7 +90,7 @@ struct Entry
 
 fn int Entry.compare_to(&self, Entry other) => compare_to(self.locality, other.locality); 
 
-fn long solve2()
+fn long part2()
 {
 	$if $feature(TEST):
 		String s = (String)file::load_temp("input_test")!!;
@@ -115,49 +103,21 @@ fn long solve2()
 	$endif
 
 	String[] lines = s.trim().tsplit("\n");
+	Vec mid = {xmax/2,ymax/2};
 
 	PriorityQueue(<Entry>) heap;
 	heap.temp_init();
-
-	Vec mid = {xmax/2,ymax/2};
 	for (long i = 1; i < 10000; i++)
 	{
 		double locality;
 		foreach (line : lines)
 		{
 			Vec r = parse(line).simulate(i, xmax, ymax);
-			Vec l = r - mid;
-			locality += l.dot(l);
+			r -= mid;
+			locality += r.dot(r);
 		}
 		heap.push({i, locality});
 
 	}
-
-	$if $feature(DEBUG):
-		for (int i = 0; i < 10; i++)
-		{
-			Entry e = heap.pop()!!;
-			io::printfn("step: %d, locality: %g", e.index, e.locality);
-
-			List(<Vec>) robots;
-			robots.temp_init();
-			foreach (line: lines) robots.push(parse(line).simulate(e.index, xmax, ymax));
-
-			for (usz x = 0; x < xmax; x++)
-			{
-				for (usz y = 0; y < ymax; y++)
-				{
-					char c = '.';
-					if (robots.contains({x,y})) c = 'O';
-					io::printf("%c", c);
-
-				}
-				io::printn("");
-			}
-
-		}
-		return 0;
-	$else
-		return heap.pop()!!.index;
-	$endif
+	return heap.pop()!!.index;
 }

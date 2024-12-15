@@ -1,6 +1,7 @@
 module aoc2024::app;
 
 import std::io;
+import std::math;
 import std::collections::list;
 
 fn void! main()
@@ -8,7 +9,7 @@ fn void! main()
 	@pool()
 	{
 		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		io::printfn("result: part 2: %d", part2());
 	};
 }
 
@@ -17,13 +18,19 @@ const char BOX = 'O';
 const char ROBOT = '@';
 const char FREE = '.';
 
-def Vec = int[<2>];
+def Vec = long[<2>];
 
 struct Warehouse
 {
 	List(<String>) map;
 	Vec robot;
-	String instructions;
+	char[] moves;
+}
+
+struct Field
+{
+	Vec p;
+	char ch;
 }
 
 fn void Warehouse.apply(&self, char d)
@@ -36,33 +43,38 @@ fn void Warehouse.apply(&self, char d)
 		case '^': dir = {-1, 0};
 		case 'v': dir = {1, 0};
 	}
-	if (try pos = self.move(self.robot, dir))
+	List(<Field>) fields;
+	if (self.move(self.robot, dir, fields.temp_init()))
 	{
-		while (pos != self.robot)
-		{
-			Vec prev = pos - dir;
-			self.set(pos, self.map[prev.x][prev.y]);
-			pos = prev;
-		}
+		foreach (field : fields) self.set(field.p, FREE);
+		foreach (field : fields) self.set(field.p + dir, field.ch);
 		self.robot += dir;
 	}
 }
 
 fn void Warehouse.set(&self, Vec p, char c)
 {
-	String line = self.map[p.x];
-	line[p.y] = c;
-	self.map[p.x] = line;
+	String ln = self.map[p.x];
+	ln[p.y] = c;
+	self.map[p.x] = ln;
 }
 
-fn Vec! Warehouse.move(&self, Vec p, Vec d)
+fn bool Warehouse.move(&self, Vec p, Vec d, List(<Field>)* fields)
 {
+	fields.push({p, self.map[p.x][p.y]});
 	Vec next = p + d;
 	switch (self.map[next.x][next.y])
 	{
-		case FREE: return next;
-		case BOX: return self.move(next, d);
-		default: return SearchResult.MISSING?;
+		case FREE: return true;
+		case BOX: return self.move(next, d, fields);
+		case '[': 
+			if (math::abs(d.x) == 0) return self.move(next, d, fields);
+			return self.move(next, d, fields) && self.move(next + {0, 1}, d, fields);
+		
+		case ']':
+			if (math::abs(d.x) == 0) return self.move(next, d, fields);
+			return self.move(next, d, fields) && self.move(next + {0, -1}, d, fields);
+		default: return false;
 	}
 }
 
@@ -73,67 +85,69 @@ fn long Warehouse.score(&self)
 	{
 		foreach (y, c : line)
 		{
-			if (c == BOX) score += 100 * x + y;
+			if (c == BOX || c == '[') score += 100 * x + y;
 		}
 	}
 	return score;
 }
 
-fn usz! Warehouse.to_format(&self, Formatter *f) @dynamic
-{
-	usz! n;
-	io::printfn("robot: %s", self.robot);
-	foreach (x, line : self.map)
-	{
-		String copy = line.tcopy();
-		if (x == self.robot.x) copy[self.robot.y] = ROBOT;
-		n += f.printf("%s\n", copy);
-	}
-	// n += f.printf("\n%s\n", self.instructions);
-	return n;
-}
-
-fn Warehouse load_warehouse()
+fn Warehouse load_warehouse(bool part2 = false )
 {
 	$if $feature(TEST):
-		String s = (String)file::load_temp("input_test")!!;
+		String in = (String)file::load_temp("input_test")!!;
 	$else
-		String s = (String)file::load_temp("input")!!;
+		String in = (String)file::load_temp("input")!!;
 	$endif
-	String[] parts = s.trim().tsplit("\n\n");
-	assert(parts.len == 2);
+
+	String[] parts = in.trim().tsplit("\n\n");
+
 	List(<String>) map;
 	map.temp_init();
+
 	Vec r;
 	foreach (x, line : parts[0].tsplit("\n"))
 	{
-		String copy = line.tcopy();
-		if (try y = line.index_of_char(ROBOT))
+		DString copy;
+		copy.temp_init();
+		if (part2)
 		{
-			r = {(int)x, (int)y};
-			copy[y] = FREE;
+			foreach (c : line)
+			{
+				switch (c)
+				{
+					case BLOCK: copy.append(BLOCK); copy.append(BLOCK);
+					case BOX: copy.append('['); copy.append(']');
+					case FREE: copy.append(FREE); copy.append(FREE);
+					case ROBOT: copy.append(ROBOT); copy.append(FREE);
+				}
+			}
 		}
-		map.push(copy);
+		else
+		{
+			copy.append(line);
+		}
+		String s = copy.str_view();
+		if (try y = s.index_of_char(ROBOT))
+		{
+			r = {x, y};
+			s[y] = FREE;
+		}
+		map.push(s);
 	}
 
-	DString instructions;
-	instructions.temp_init();
-	foreach (line : parts[1].tsplit("\n")) instructions.append(line.trim());
+	DString moves;
+	moves.temp_init();
+	foreach (line : parts[1].tsplit("\n")) moves.append(line.trim());
 
-	return {.map = map, .robot = r, .instructions = instructions.str_view()};
+	return {.map = map, .robot = r, .moves = moves.str_view()};
 }
 
-fn long part1()
+fn long part1() => solve(false);
+fn long part2() => solve(true);
+
+fn long solve(bool part2)
 {
-	Warehouse w = load_warehouse();
-	// io::printn("initial statate");
-	// io::printfn("%s", w);
-	foreach (i, c : w.instructions)
-	{
-		w.apply(c);
-		// io::printfn("\nstep after %c:", c);
-		// io::printfn("%s", w);
-	}
+	Warehouse w = load_warehouse(part2);
+	foreach (i, c : w.moves) w.apply(c);
 	return w.score();
 }
-

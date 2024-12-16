@@ -1,13 +1,13 @@
 module aoc2024::app;
 
 import std::io, std::math, std::collections::list;
+import std::collections::priorityqueue;
 
 fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		part1and2();
 	};
 }
 
@@ -21,6 +21,7 @@ struct Map
 {
 	List(<String>) m;
 	Vec start;
+	Vec end;
 }
 
 fn Map load_map()
@@ -39,23 +40,20 @@ fn Map load_map()
 	foreach (x, line : input.tsplit("\n"))
 	{
 		String s = line.trim().tcopy();
-		if (try y = s.index_of_char(START))
-		{
-			m.start = {x, y};
-			
-		}
+		if (try y = s.index_of_char(START)) m.start = {x, y};
+		if (try y = s.index_of_char(END)) m.end = {x, y};
 		m.m.push(s);
 	}
 	return m;
 }
 
-fn long part1()
+fn void part1and2()
 {
 	Map m = load_map();
 	Vec east = {0, 1};
-	return solve(m, m.start, east, 0).score;
+	solve(m, m.start, east, 0);
 }
-fn long part2() => 0;
+
 
 struct PosDir
 {
@@ -65,18 +63,21 @@ struct PosDir
 }
 fn bool PosDir.equals(&a, PosDir b) => a.p == b.p && a.d == b.d;
 
-// use dfs to find path through the maze, update visited nodes if score of new
-// path is lower.
-fn PosDir solve(Map m, Vec p, Vec d, long score)
+def Heap = PriorityQueue(<PosDir>);
+def Entry = PosDir;
+fn int Entry.compare_to(&self, Entry other) => compare_to(self.score, other.score); 
+
+
+fn void solve(Map m, Vec p, Vec d, long score)
 {
-	
 	List(<PosDir>) stack;
 	stack.temp_init().push({p, d, score});
 
 	List(<PosDir>) visited;
 	visited.temp_init();
 
-	PosDir min = {p,d,long.max};
+	Heap heap;
+	heap.temp_init();
 
 	while LOOP: (stack.len())
 	{
@@ -84,16 +85,8 @@ fn PosDir solve(Map m, Vec p, Vec d, long score)
 		p = pd.p;
 		d = pd.d;
 
-		if (pd.score > min.score) continue;
-
-		switch (m.m[p.x][p.y])
-		{
-			case BLOCK:
-				continue;
-			case END:
-				if (pd.score < min.score) min = pd;
-				continue;
-		}
+		if (heap.len() > 0 && pd.score > heap.first()!!.score) continue;
+		if (m.m[p.x][p.y] == BLOCK) continue;
 
 		if (try index = visited.index_of(pd))
 		{
@@ -105,10 +98,69 @@ fn PosDir solve(Map m, Vec p, Vec d, long score)
 			visited.push(pd);
 		}
 
+		if (m.m[p.x][p.y] == END)
+		{
+			heap.push(pd);
+			continue;
+		}
+
 		stack.push({p+d, d, pd.score + 1});
 		stack.push({p+{d.y, -d.x}, {d.y, -d.x}, pd.score + 1001});
 		stack.push({p+{-d.y, d.x}, {-d.y, d.x}, pd.score + 1001});
 	}
 
-	return min;
+	io::printfn("result: part 1: %d", heap.first()!!.score);
+	io::printfn("result: part 2: %d", backwards(m, visited, heap.first()!!.score));
 }
+
+fn long backwards(Map m, List(<PosDir>) visited, long lowest)
+{
+	List(<PosDir>) stack;
+	stack.temp_init();
+
+	foreach (v : visited)
+	{
+		if (v.p == m.end && v.score == lowest) stack.push(v);
+	}
+
+	bool[200][200] path;
+	path[0][..] = false;
+	path[..] = path[0];
+
+	path[m.start.x][m.start.y] = true;
+
+	while LOOP: (stack.len())
+	{
+		PosDir pd = stack.pop_first()!!;
+		Vec p = pd.p;
+		Vec d = pd.d;
+
+		switch (m.m[p.x][p.y])
+		{
+			case BLOCK: continue;
+			case START: continue;
+		}
+
+		if (try index = visited.index_of(pd) && visited[index].score == pd.score)
+		{
+			stack.push({p-d, d, pd.score - 1});
+			stack.push({p-d, {d.y, -d.x}, pd.score - 1001});
+			stack.push({p-d, {-d.y, d.x}, pd.score - 1001});
+			path[p.x][p.y] = true;
+			visited.remove_at(index);
+		}
+	}
+
+	long counts;
+	for (usz i = 0; i < 200; i++)
+	{
+		for (usz j = 0; j < 200; j++)
+		{
+			if (path[i][j]) counts++;
+
+		}
+	}
+
+	return counts;
+}
+

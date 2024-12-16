@@ -148,6 +148,6 @@ fn long part2() => solve(true);
 fn long solve(bool part2)
 {
 	Warehouse w = load_warehouse(part2);
-	foreach (i, c : w.moves) w.apply(c);
+	foreach (c : w.moves) w.apply(c);
 	return w.score();
 }

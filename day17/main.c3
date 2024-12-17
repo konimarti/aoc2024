@@ -22,6 +22,38 @@ struct Cpu
 	bool no_inc;
 }
 
+fn String Cpu.run(&c)
+{
+	OpCode inst;
+	usz index;
+	while (c.ip < c.prog.len)
+	{
+		io::printfn("---\nip: %d", c.ip);
+		index = c.prog[c.ip];
+		io::printfn("index: %d", index);
+		io::printfn("reg a: %d", c.reg.x); 
+		io::printfn("reg b: %d", c.reg.y); 
+		io::printfn("reg c: %d", c.reg.z); 
+		if (index >= instructions.len)
+		{
+			io::printfn("instruction index out of range: %d. Halt.", index);
+			break;
+		}
+		if (catch instructions[index](c))
+		{
+			io::printfn("opcode [%d] failed. Halt.", index);
+			break;
+		}
+		if (c.no_inc)
+		{
+			c.no_inc = false;
+			continue;
+		}
+		c.ip += 2;
+	}
+	return c.output.str_view();
+}
+
 fn int Cpu.combo(&self, int combo_op)
 {
 	switch (combo_op)
@@ -49,12 +81,11 @@ fn usz! Cpu.to_format(&self, Formatter *f) @dynamic
 	return n;
 }
 
+fn long dv(Cpu *c) => (long)c.reg.x >> c.combo(c.prog[c.ip+1]);
+
 fn void! adv(Cpu *c)
 {
-	long num = c.reg.x;
-	long denom = (int)math::pow(2, c.combo(c.prog[c.ip+1]));
-	long result = num / denom;
-	c.reg.x = (int)result;
+	c.reg.x = (int)dv(c);
 }
 
 fn void! bxl(Cpu *c)
@@ -76,31 +107,24 @@ fn void! jnz(Cpu *c)
 
 fn void! bxe(Cpu *c)
 {
-	c.prog[c.ip+1]; // read operand but ignore it
 	c.reg.y ^= c.reg.z;
 }
 
 fn void! out(Cpu *c)
 {
 	int operand = c.combo(c.prog[c.ip+1]);
-	c.output.append(operand % 8);
-	c.output.append(",");
+	if (c.output.len()) c.output.append(",");
+	c.output.appendf("%d", operand % 8);
 }
 
 fn void! bdv(Cpu *c)
 {
-	long num = c.reg.x;
-	long denom = (int)math::pow(2, c.combo(c.prog[c.ip+1]));
-	long result = num / denom;
-	c.reg.y = (int)result;
+	c.reg.y = (int)dv(c);
 }
 
 fn void! cdv(Cpu *c)
 {
-	long num = c.reg.x;
-	long denom = (int)math::pow(2, c.combo(c.prog[c.ip+1]));
-	long result = num / denom;
-	c.reg.z = (int)result;
+	c.reg.z = (int)dv(c);
 }
 fn void! nop(Cpu *c)
 {
@@ -140,7 +164,10 @@ fn Cpu load_cpu()
 	DString output;
 	output.temp_init();
 
-	return {.reg = reg, .prog = prog[:opcodes.len], .ip = 0, .output = output, .no_inc = false};
+	int[] tprog = mem::temp_new_array(int, opcodes.len);
+	tprog[..] = prog[:opcodes.len];
+
+	return {.reg = reg, .prog = tprog, .ip = 0, .output = output, .no_inc = false};
 }
 
 fn String part1() => solve();
@@ -149,19 +176,6 @@ fn String part1() => solve();
 fn String solve()
 {
 	Cpu c = load_cpu();
-	OpCode inst;
-	usz index;
-	while (c.ip < c.prog.len)
-	{
-		index = c.prog[c.ip];
-		if (index >= instructions.len) break;
-		if (catch instructions[index](&c)) break;
-		if (c.no_inc)
-		{
-			c.no_inc = false;
-			continue;
-		}
-		c.ip += 2;
-	}
-	return c.output.str_view();
+	io::printfn("CPU:\n%s", c);
+	return c.run();
 }

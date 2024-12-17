@@ -13,51 +13,36 @@ fn void! main()
 	};
 }
 
+def Output = List(<long>);
+
 struct Cpu
 {
 	long[<3>] reg; 
 	long[] prog; 
 	usz ip;
-	List(<long>) output;
-	bool no_inc;
+	Output out;
 }
 
 fn void Cpu.run(&c)
 {
-	OpCode inst;
 	usz index;
-
-	while (c.ip < c.prog.len)
+	while (c.ip < c.prog.len - 1)
 	{
 		index = c.prog[c.ip];
-		if (index >= instructions.len)
-		{
-			io::printfn("instruction index out of range: %d. Halt.", index);
-			break;
-		}
-		if (catch instructions[index](c))
-		{
-			io::printfn("opcode [%d] failed. Halt.", index);
-			break;
-		}
-		if (c.no_inc)
-		{
-			c.no_inc = false;
-			continue;
-		}
+		if (index >= instructions.len) break;
+		instructions[index](c)!!;
 		c.ip += 2;
 	}
 }
 
-fn usz Cpu.combo(&self, usz combo_op)
+fn usz Cpu.combo(&self, usz op)
 {
-	switch (combo_op)
+	switch (op)
 	{
 		case 0:
 		case 1:
 		case 2:
-		case 3:
-			return combo_op;
+		case 3: return op;
 		case 4: return self.reg.x; 
 		case 5: return self.reg.y; 
 		case 6: return self.reg.z; 
@@ -76,7 +61,8 @@ fn usz! Cpu.to_format(&self, Formatter *f) @dynamic
 	return n;
 }
 
-fn long dv(Cpu *c) => (long)c.reg.x >> c.combo(c.prog[c.ip+1]);
+fn long dv(Cpu *c) @inline => c.reg.x >> c.combo(c.prog[c.ip+1]);
+fn long mod(long a, long b) @inline => (a % b + b) % b;
 
 fn void! adv(Cpu *c)
 {
@@ -85,21 +71,17 @@ fn void! adv(Cpu *c)
 
 fn void! bxl(Cpu *c)
 {
-	c.reg.y ^= c.prog[c.ip+1];
+	c.reg.y ^= c.prog[c.ip + 1];
 }
 
 fn void! bst(Cpu *c)
 {
-	long modulo = (c.prog[c.ip+1]) % 8;
-	if (modulo < 0) modulo += 8;
-	c.reg.y = c.combo(modulo) & 0b111;
+	c.reg.y = c.combo(mod(c.prog[c.ip + 1], 8)) & 0b111;
 }
 
 fn void! jnz(Cpu *c)
 {
-	if (c.reg.x == 0) return;
-	c.ip = c.prog[c.ip+1];
-	c.no_inc = true;
+	if (c.reg.x != 0) c.ip = c.prog[c.ip + 1] - 2;
 }
 
 fn void! bxe(Cpu *c)
@@ -109,9 +91,7 @@ fn void! bxe(Cpu *c)
 
 fn void! out(Cpu *c)
 {
-	long modulo = c.combo(c.prog[c.ip+1]) % 8;
-	if (modulo < 0) modulo += 8;
-	c.output.push(modulo);
+	c.out.push(mod(c.combo(c.prog[c.ip + 1]), 8));
 }
 
 fn void! bdv(Cpu *c)
@@ -130,16 +110,8 @@ fn void! nop(Cpu *c)
 
 def OpCode = fn void! (Cpu *c);
 OpCode[*] instructions = {
-	[0] = &adv,
-	[1] = &bxl,
-	[2] = &bst,
-	[3] = &jnz,
-	[4] = &bxe,
-	[5] = &out,
-	[6] = &bdv,
-	[7] = &cdv,
-	[8] = &nop,
-	[9] = &nop,
+	[0] = &adv, [1] = &bxl, [2] = &bst,[3] = &jnz, [4] = &bxe,
+	[5] = &out, [6] = &bdv, [7] = &cdv, [8] = &nop, [9] = &nop,
 };
 
 fn Cpu load_cpu()
@@ -155,14 +127,15 @@ fn Cpu load_cpu()
 	long[<3>] reg;
 	foreach (i, line : parts[0].tsplit("\n")) reg[i] = ((String)line[12..]).to_int()!!;
 
-	long[32] prog;
 	String[] opcodes = ((String)parts[1][9..]).trim().tsplit(",");
+
+	long[32] prog;
 	foreach (i, opcode : opcodes) prog[i] = opcode.trim().to_int()!!;
 
 	long[] tprog = mem::temp_new_array(long, opcodes.len);
 	tprog[..] = prog[:opcodes.len];
 
-	return {.reg = reg, .prog = tprog, .ip = 0, .output = *List(<long>){}.temp_init(), .no_inc = false};
+	return {.reg = reg, .prog = tprog, .ip = 0, .out= *Output{}.temp_init()};
 }
 
 fn String part1() => solve();
@@ -171,15 +144,14 @@ fn long part2() => reverse();
 fn String solve()
 {
 	Cpu c = load_cpu();
-	io::printfn("CPU:\n%s", c);
 	c.run();
 
 	DString s;
 	s.temp_init();
-	foreach (i, o : c.output)
+	foreach (i, out : c.out)
 	{
-		if (i>0) s.append(",");
-		s.appendf("%d", o);
+		if (i > 0) s.append(",");
+		s.appendf("%d", out);
 	}
 	return s.str_view();
 }
@@ -193,33 +165,34 @@ struct State
 // bfs
 fn long reverse()
 {
-	Cpu c = load_cpu();
-
 	List(<State>) stack;
 	stack.temp_init();
 
+	Cpu c = load_cpu();
 	stack.push({c.prog.len - 1, 0});
 
 	long a;
-	while (stack.len())
+	while LOOP: (stack.len())
 	{
 		State s = stack.pop_first()!!;
 
 		for (usz i = 0; i < 8; i++)
 		{
 			a = (s.estimate << 3) + i;
+
 			c.reg[..] = 0;
 			c.reg.x = a;
 			c.ip = 0;
-			c.output.clear();
+			c.out.clear();
+
 			c.run();
-			if (c.output.to_tarray() == c.prog[s.remaining..])
+
+			if (c.out.to_tarray() == c.prog[s.remaining..])
 			{
-				if (s.remaining == 0) return a;
+				if (s.remaining == 0) break LOOP;
 				stack.push({s.remaining - 1, a});
 			}
 		}
 	}
-
-	return -1;
+	return a;
 }

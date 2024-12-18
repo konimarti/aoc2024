@@ -72,15 +72,18 @@ fn Mem load_mem()
 	return { .m = mem, .size = Vec{w, h}, .bytes = list };
 }
 
-fn long part1() => solve(load_mem());
+fn long part1() => solve(load_mem()).len() - 1;
 
 fn String part2()
 {
 	Mem m = load_mem();
+	VecList best = solve(m);
 	foreach (i, corrupt : m.bytes)
 	{
 		m.m[corrupt.y * m.size.x + corrupt.x] = '#';
-		if (solve(m) == 0) return string::tformat("%s", corrupt);
+		if (!best.contains(corrupt.yx)) continue;
+		best = solve(m);
+		if (best.len() == 0) return string::tformat("%s", corrupt);
 	}
 	return "";
 }
@@ -89,28 +92,34 @@ struct State
 {
 	Vec p;
 	usz n;
+	VecList path;
 }
 
-fn long solve(Mem m)
+fn VecList solve(Mem m)
 {
 	VecList visited;
 	visited.temp_init();
 
 	List(<State>) queue;
 	queue.temp_init();
-	queue.push({{0,0},0});
+	queue.push({{0,0}, 0, *VecList{}.temp_init()});
 
 	Vec[4] dirs = {{0,1},{0,-1},{1,0},{-1,0}};
 
 	while (queue.len())
 	{
 		State s = queue.pop_first()!!;
+		s.path.push(s.p);
 		if (!m.inside(s.p)) continue;
 		if (m.get(s.p) == '#') continue;
-		if (s.p == m.size - 1) return s.n;
+		if (s.p == m.size - 1) return s.path;
 		if (visited.contains(s.p)) continue;
 		visited.push(s.p);
-		foreach (d: dirs) queue.push({s.p + d, s.n + 1});
+		foreach (d: dirs)
+		{
+			VecList path = *VecList{}.temp_init_with_array(s.path.to_tarray());
+			queue.push({s.p + d, s.n + 1, path});
+		}
 	}
-	return 0;
+	return *VecList{}.temp_init();
 }

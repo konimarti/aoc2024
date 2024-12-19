@@ -1,14 +1,17 @@
 module aoc2024::app;
 
 import std::io;
+import std::time;
 import std::collections::list;
+import std::collections::map;
 
 fn void! main()
 {
 	@pool()
 	{
-		io::printfn("result: part 1: %d", part1());
-		// io::printfn("result: part 2: %d", part2());
+		Clock c = clock::now();
+		io::printfn("result: part 1: %d %s", part1(), c.mark());
+		io::printfn("result: part 2: %d %s", part2(), c.mark());
 	};
 }
 
@@ -42,36 +45,48 @@ fn Towels load_towels()
 	return t;
 }
 
+def Cache = HashMap(<String, long>);
+
 fn long part1() => solve();
-// fn long part2() => reverse();
+fn long part2() => solve2();
 
 fn long solve()
 {
-	Towels t = load_towels();
-
 	long n;
-	foreach (design : t.designs) n += possible(t.towels, design) ? 1 : 0;
+
+	Cache c;
+	c.temp_init();
+
+	Towels t = load_towels();
+	foreach (design : t.designs) n += search(t.towels, design, &c) ? 1 : 0;
+
 	return n;
 }
 
-struct State
+fn long solve2()
 {
-	String rem;
+	long n;
+
+	Cache c;
+	c.temp_init();
+
+	Towels t = load_towels();
+	foreach (design : t.designs) n += search(t.towels, design, &c);
+
+	return n;
 }
 
-fn bool possible(StringList towels, String design)
+fn long search(StringList towels, String s, Cache *c)
 {
-	List(<State>) stack;
-	stack.temp_init();
-	stack.push({design});
+	if (try n = (*c)[s]) return n;	
+	if (s.len == 0) return 1;
 
-	while (try s = stack.pop())
+	long n;
+	foreach (towel : towels)
 	{
-		if (s.rem.len == 0) return true;
-		foreach (t : towels)
-		{
-			if (s.rem.starts_with(t)) stack.push({s.rem[t.len..]});
-		}
+		if (s.len < towel.len) continue;
+		if (s[:towel.len] == towel) n += search(towels, s[towel.len..], c);
 	}
-	return false;
+	(*c)[s] = n;
+	return n;
 }

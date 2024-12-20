@@ -2,8 +2,8 @@ module aoc2024::app;
 
 import std::io;
 import std::time;
+import std::math;
 import std::collections::list;
-import std::collections::map;
 
 fn void! main()
 {
@@ -11,7 +11,7 @@ fn void! main()
 	{
 		Clock c = clock::now();
 		io::printfn("result: part 1: %d %s", part1(), c.mark());
-		// io::printfn("result: part 2: %d %s", part2(), c.mark());
+		io::printfn("result: part 2: %d %s", part2(), c.mark());
 	};
 }
 
@@ -48,60 +48,26 @@ fn Race load_race()
 	return r;
 }
 
-fn long part1() => solve();
-// fn long part2() => solve2();
+fn long part1() => solve(2, 100);
+fn long part2() => solve(20, 100);
 
-fn long solve()
+fn long solve(usz cheat_steps, usz cheats_larger_than)
 {
 	Race r = load_race();
-	// foreach (l : r.m) io::printn(l);
-
 	VecList steps = find_steps(&r);
-	// foreach (x, l : r.m) io::printn(r.len[x][0..r.size.y]);
-
-	HashMap(<usz, usz>) cheats;
-	cheats.temp_init();
-
 	usz count;
-	foreach (i, pos : steps)
+	for (usz i = 0; i < steps.len(); i++)
 	{
-		// find number in 5x5 grid around current position 
-		// ..o..
-		// .....
-		// o.x.o
-		// .....
-		// ..o..
-		foreach (d : dirs)
+		Vec pos = steps[i];
+		for (usz j = i + 1; j < steps.len(); j++)
 		{
-			Vec n = pos + d;
-			if (!r.valid(n)) continue;
-			if (r.m[n.x][n.y] != '#') continue;
-
-			n += d;
-			if (!r.valid(n)) continue;
-			if (r.m[n.x][n.y] == '#') continue;
-
-			int cheat = r.len[n.x][n.y] - r.len[pos.x][pos.y] - 2;
-			if (cheat <= 0) continue;
-			// io::printfn("cheat at pos (%s): %d", pos, cheat);
-			if (cheat >= 100) count++;
-
-			if (try ncheats = cheats.get_ref(cheat))
-			{
-				cheats.set(cheat, *ncheats+1);
-			}
-			else
-			{
-				cheats.set(cheat, 1);
-			}
+			Vec n = steps[j];
+			usz nsteps = math::abs(n - pos).sum();
+			if (nsteps > cheat_steps) continue;
+			int cheat = r.len[n.x][n.y] - r.len[pos.x][pos.y] - (ushort)nsteps;
+			if (cheat >= cheats_larger_than) count++;
 		}
 	}
-
-	cheats.@each(; usz k, usz v)
-	{
-		// io::printfn("cheat (%d) %d", k, v);
-	};
-
 	return count;
 }
 
@@ -112,20 +78,24 @@ struct State
 }
 
 Vec[4] dirs = {{0,1}, {0,-1}, {1,0}, {-1,0}};
+
 fn VecList find_steps(Race *r)
 {
 	List(<State>) queue;
 	queue.temp_init();
 	queue.push({r.start, 0});
+
 	VecList visited;
 	visited.temp_init();
+
 	while (try s = queue.pop_first())
 	{
+		if (!r.valid(s.pos)) continue;
 		if (s.pos == r.end) {
 			r.len[s.pos.x][s.pos.y] = (ushort)s.len;
+			visited.push(s.pos);
 			break;
 		}
-		if (!r.valid(s.pos)) continue;
 		if (r.m[s.pos.x][s.pos.y] == '#') continue;
 		if (visited.contains(s.pos)) continue;
 		visited.push(s.pos);

@@ -4,6 +4,7 @@ import std::io;
 import std::time;
 import std::math;
 import std::collections::list;
+import std::collections::map;
 
 fn void! main()
 {
@@ -11,7 +12,7 @@ fn void! main()
 	{
 		Clock c = clock::now();
 		io::printfn("result: part 1: %d %s", part1(), c.mark());
-		// io::printfn("result: part 2: %d %s", part2(), c.mark());
+		io::printfn("result: part 2: %d %s", part2(), c.mark());
 	};
 }
 
@@ -24,8 +25,6 @@ struct Code
 def Codes = List(<Code>);
 def Vec = int[<2>];
 def VecList = List(<Vec>);
-
-fn long num(String s) => s[:3].to_long()!!;
 
 fn Codes load_codes()
 {
@@ -41,7 +40,7 @@ fn Codes load_codes()
 	foreach (line: input.trim().tsplit("\n"))
 	{
 		line = line.trim();
-		codes.push({line, num(line)});
+		codes.push({line, line[:3].to_long()!!});
 	}
 
 	return codes;
@@ -89,9 +88,13 @@ Vec[*] dirpad = {
 
 
 fn long part1() => solve(3);
+fn long part2() => solve(26);
 
 fn long solve(usz level)
 {
+	Cache cache;
+	cache.temp_init();
+
 	long score;
 	foreach (code: load_codes())
 	{
@@ -99,15 +102,26 @@ fn long solve(usz level)
 		char start = 'A';
 		foreach (end: code.str)
 		{
-			n += min_ways(start, end, level, true);
-			// io::printfn(" > start=%c end=%c curlen=%d", start, end, n);
+			n += min_ways(start, end, level, true, &cache);
 			start = end;
 		}
-		io::printfn("code str: %s, %d: result: %d", code.str, code.number, n);
+		$if $feature(DEBUG):
+			io::printfn("code: %s, score: %d * %d", code.str, code.number, n);
+		$endif
 		score += code.number * n;
 	}
 	return score;
 }
+
+union Hash
+{
+	char[3] c;
+	uint h;
+}
+fn uint Hash.hash(&self) => self.h;
+fn bool Hash.equals(&self, Hash other) => self.h == other.h;
+
+def Cache = HashMap(<Hash, long>);
 
 // level 3: numpad (robot 1)
 // level 2: dirpad (robot 2)
@@ -115,33 +129,47 @@ fn long solve(usz level)
 // level 0: dirpad (me)
 //
 // char s,e can either be chars on numpad or dirpad
-fn long min_ways(char s, char e, usz level, bool use_numpad)
+fn long min_ways(char s, char e, usz level, bool use_numpad, Cache *cache)
 {
 	if (level == 0) return 1;
 
-	List(<String>) ways = {|
+	long min = long.max;
+
+	// memoization
+	Hash key = {.c = {s, e, (char)level}};
+	if (try m = cache.get(key)) return m;
+	defer cache.set(key, min);
+
+	List(<String>) ways =
+	{|
 		if (use_numpad) return ways_on_pad(numpad[s], numpad[e], numpad[..]);
 		return ways_on_pad(dirpad[s], dirpad[e], dirpad[..]);
 	|};
 
-	// if (level == 1) io::printfn("\n%c -> %c (%s)", s, e, use_numpad?"numpad":"dirpad");
+	$if $feature(DEBUG):
+		if (level == 1) io::printfn("\n%c -> %c (%s)", s, e, use_numpad?"numpad":"dirpad");
+	$endif
 
-	long min = long.max;
 	foreach (way: ways)
 	{
-		long n;
+		ulong n;
 		char start = 'A';
 		foreach (end: way)
 		{
-			n += min_ways(start, end, level - 1, false);
+			n += min_ways(start, end, level - 1, false, cache);
 			start = end;
 		}
 		if (n < min) min = n;
-		// if (level == 1) io::printfn(" way: %s [min=%d]", way, n);
-	}
-		// if (level == 1) io::printfn(" selected: %d", min);
 
+		$if $feature(DEBUG):
+			if (level == 1) io::printfn(" way: %s [min=%d]", way, n);
+		$endif
+	}
+
+	$if $feature(DEBUG):
+		if (level == 1) io::printfn(" selected: %d", min);
 		if (use_numpad) io::printfn("min: %d", min);
+	$endif
 
 
 	return min;
@@ -157,7 +185,10 @@ struct State
 Vec[*] dirs = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 char[*] sign = {'^','v','<','>'};
 
-// bfs on pad from start to end char
+// bfs on the given pad from start to end char. The visited list should
+// consider the direction, so that we explore the entire solution space. BFS
+// would criss-cross towards the goal, but here the straight lines are
+// preferred.
 fn List(<String>) ways_on_pad(Vec start, Vec end, Vec[] pad_vec)
 {
 	List(<State>) queue;
@@ -184,8 +215,9 @@ fn List(<String>) ways_on_pad(Vec start, Vec end, Vec[] pad_vec)
 			continue;
 		}
 
-		if (visited.contains({...state.pos, ...state.dir})) continue;
-		visited.push({...state.pos, ...state.dir});
+		int[<4>] visit = {...state.pos, ...state.dir};
+		if (visited.contains(visit)) continue;
+		visited.push(visit);
 
 		foreach (i, d: dirs)
 		{

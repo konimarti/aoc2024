@@ -1,10 +1,6 @@
 module aoc2024::app;
 
-import std::io;
-import std::time;
-import std::math;
-import std::collections::list;
-import std::collections::map;
+import std::io, std::time, std::collections::map;
 
 fn void! main()
 {
@@ -12,7 +8,7 @@ fn void! main()
 	{
 		Clock c = clock::now();
 		io::printfn("result: part 1: %d %s", part1(), c.mark());
-		// io::printfn("result: part 2: %d %s", part2(), c.mark());
+		io::printfn("result: part 2: %d %s", part2(), c.mark());
 	};
 }
 
@@ -31,38 +27,83 @@ fn ulong[] secrets()
 }
 
 fn ulong part1() => solve();
-// fn long part2() => solve(26);
+fn ulong part2() => solve2();
 
 fn ulong solve()
 {
 	ulong sum;
-	foreach (secret: secrets()) sum += num2000(secret);
+	foreach (secret: secrets()) sum += run(secret, 2000);
 	return sum;
 }
 
-fn ulong num2000(ulong secret)
+union Seq
 {
-	usz rounds = 2000;
+	ichar[4] c;
+	uint h;
+}
+fn uint Seq.hash(&self) => self.h;
+fn bool Seq.equals(&self, Seq other) => self.h == other.h;
+fn usz! Seq.to_format(&self, Formatter *f) @dynamic => f.printf("%s", self.c);
+
+def SeqMap = HashMap(<Seq, long>);
+
+fn ulong solve2()
+{
+	// we need to loop 2001 times to get 2000 price *changes*
+	uint n = 2001;
+	ichar[] changes = mem::temp_new_array(ichar, n);
+
+	SeqMap m;
+	m.temp_init(n);
+
+	SeqMap visited;
+	visited.temp_init(n);
+
+	foreach (secret: secrets())
+	{
+		char last_digit, prev_digit;
+		visited.clear();
+		for (int i = 0; i < n; i++)
+		{
+			secret = run(secret);
+			last_digit = (char)(secret % 10);
+			if (i > 0) changes[i] = last_digit - prev_digit;
+			prev_digit = last_digit;
+
+			if (i >= 4)
+			{
+				// subtract -3 because we want the
+				// current element in the list
+				Seq key = {.c = changes[(i - 3):4]};
+
+				if (visited.has_key(key)) continue;
+				visited.set(key, 0);
+
+				m.set(key, (m.get(key) ?? 0) + last_digit);
+			}
+		}
+	}
+
+	ulong bananas;
+	m.@each(; Seq key, long value)
+	{
+		if (value > bananas) bananas = value;
+	};
+
+	return bananas;
+}
+
+
+fn ulong mix(ulong a, ulong b) @inline => a ^ b;
+fn ulong prune(ulong a) @inline => a % 16777216;
+
+fn ulong run(ulong secret, usz rounds = 1)
+{
 	while (rounds--)
 	{
-		secret = mul_step(secret, 64);
-		secret = div_step(secret);
-		secret = mul_step(secret, 2048);
+		secret = prune(mix(secret, secret * 64));
+		secret = prune(mix(secret, secret / 32));
+		secret = prune(mix(secret, secret * 2048));
 	}
-	return secret;
-}
-
-
-fn ulong mul_step(ulong secret, ulong factor)
-{
-	secret ^= secret * factor;
-	secret %= 16777216;
-	return secret;
-}
-
-fn ulong div_step(ulong secret)
-{
-	secret ^= secret / 32;
-	secret %= 16777216;
 	return secret;
 }
